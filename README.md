@@ -9,6 +9,10 @@ Mobile / PC browsers stream camera frames to a server, which returns **real-time
 
 
 
+<img src="https://github.com/user-attachments/assets/034285b9-f89e-402e-8eda-60e350a7aad9" width="320"/>
+
+<sub>Mobile browser UI (live depth streaming)</sub>
+
 
 ---
 
