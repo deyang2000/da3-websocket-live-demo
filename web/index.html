@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>DA3 Live Depth Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --card: rgba(255,255,255,0.06);
+      --card2: rgba(255,255,255,0.10);
+      --stroke: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.60);
+      --accent: #7c5cff;
+      --good: #35d07f;
+      --bad: #ff5c7a;
+      --shadow: 0 12px 30px rgba(0,0,0,0.35);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 800px at 20% 0%, rgba(124,92,255,0.25), transparent 55%),
+                  radial-gradient(900px 600px at 80% 20%, rgba(53,208,127,0.18), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: min(980px, 100%);
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1fr;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .title h1 {
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: 0.2px;
+    }
+
+    .title .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.06);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+    }
+
+    .dot.good { background: var(--good); }
+    .dot.bad { background: var(--bad); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 860px) {
+      .grid { grid-template-columns: 1fr 360px; align-items: start; }
+    }
+
+    .card {
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .viewer {
+      display: grid;
+      gap: 12px;
+    }
+
+    .paneTitle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .canvasWrap {
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,0.35);
+      position: relative;
+    }
+
+    /* 关键：锁定比例，避免压扁 */
+    .canvasWrap.ratio {
+      aspect-ratio: 504 / 280;
+    }
+
+    video, canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 10px; left: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.75);
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 6px 10px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btnRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button, select, input[type="range"] {
+      font: inherit;
+    }
+
+    button, select {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.05s ease, background 0.2s ease;
+    }
+    button:hover, select:hover { background: rgba(255,255,255,0.10); }
+    button:active { transform: translateY(1px); }
+    button.primary {
+      background: linear-gradient(135deg, rgba(124,92,255,0.9), rgba(124,92,255,0.55));
+      border-color: rgba(124,92,255,0.55);
+    }
+
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .seg button {
+      border: 0;
+      border-right: 1px solid var(--stroke);
+      border-radius: 0;
+      background: rgba(255,255,255,0.05);
+      padding: 10px 12px;
+    }
+    .seg button:last-child { border-right: 0; }
+    .seg button.active {
+      background: rgba(124,92,255,0.25);
+      color: var(--text);
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>Depth Anything 3 · Live Demo</h1>
+        <div class="sub">Browser → WebSocket → GPU Inference → Depth Stream</div>
+      </div>
+      <div class="badges">
+        <div class="badge"><span class="dot" id="wsDot"></span><span id="wsState">WS: connecting…</span></div>
+        <div class="badge mono" id="fpsBadge">FPS: --</div>
+        <div class="badge mono" id="rttBadge">RTT: -- ms</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Left: Viewer -->
+      <div class="card viewer">
+        <div class="paneTitle">
+          <span>Camera</span>
+          <span class="mono" id="camInfo">504×280</span>
+        </div>
+        <div class="canvasWrap ratio">
+          <video id="v" autoplay playsinline muted></video>
+          <div class="hint">Top: RGB · Bottom: Depth / Overlay</div>
+        </div>
+
+        <div class="paneTitle">
+          <span>Output</span>
+          <span class="mono" id="modeInfo">mode=Depth</span>
+        </div>
+        <div class="canvasWrap ratio">
+          <canvas id="view"></canvas>
+        </div>
+
+        <!-- hidden send canvas -->
+        <canvas id="send" style="display:none;"></canvas>
+      </div>
+
+      <!-- Right: Controls -->
+      <div class="card controls">
+        <div class="field">
+          <label>
+            Display Mode
+            <span class="mono" id="modeLabel">Depth</span>
+          </label>
+          <div class="seg" id="modeSeg">
+            <button data-mode="depth" class="active">Depth</button>
+            <button data-mode="rgb">RGB</button>
+            <button data-mode="overlay">Overlay</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>
+            Overlay Alpha
+            <span class="mono" id="alphaVal">0.55</span>
+          </label>
+          <input id="alpha" type="range" min="0" max="1" step="0.01" value="0.55">
+          <div class="small">Only affects Overlay mode.</div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>
+              Send FPS Limit
+              <span class="mono" id="fpsLimitVal">10</span>
+            </label>
+            <input id="fpsLimit" type="range" min="1" max="30" step="1" value="10">
+          </div>
+          <div class="field">
+            <label>
+              JPEG Quality
+              <span class="mono" id="qVal">0.70</span>
+            </label>
+            <input id="quality" type="range" min="0.2" max="0.95" step="0.05" value="0.70">
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="primary" id="btnStart">Start</button>
+          <button id="btnStop">Stop</button>
+          <button id="btnFlip">Flip Camera</button>
+        </div>
+
+        <div class="small">
+          <div><b>Tips</b></div>
+          <ul>
+            <li>Phone: keep the page in foreground; iOS may close WS in background.</li>
+            <li>If video is stretched: ratio is fixed at 504/280.</li>
+            <li>Try lowering FPS limit / JPEG quality to reduce latency.</li>
+          </ul>
+          <div class="mono" id="err" style="color: rgba(255,255,255,0.7);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ==== Config ====
+  const W = 504, H = 280;
+  const WS_URL = "ws://118.145.32.131:8001";
+
+  // ==== DOM ====
+  const video = document.getElementById('v');
+  const viewCanvas = document.getElementById('view');
+  const viewCtx = viewCanvas.getContext('2d');
+
+  const sendCanvas = document.getElementById('send');
+  const sendCtx = sendCanvas.getContext('2d');
+
+  const wsDot = document.getElementById('wsDot');
+  const wsState = document.getElementById('wsState');
+  const fpsBadge = document.getElementById('fpsBadge');
+  const rttBadge = document.getElementById('rttBadge');
+
+  const modeInfo = document.getElementById('modeInfo');
+  const modeLabel = document.getElementById('modeLabel');
+  const modeSeg = document.getElementById('modeSeg');
+
+  const alphaSlider = document.getElementById('alpha');
+  const alphaVal = document.getElementById('alphaVal');
+  const fpsLimit = document.getElementById('fpsLimit');
+  const fpsLimitVal = document.getElementById('fpsLimitVal');
+  const quality = document.getElementById('quality');
+  const qVal = document.getElementById('qVal');
+
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  const btnFlip = document.getElementById('btnFlip');
+  const errBox = document.getElementById('err');
+
+  viewCanvas.width = W; viewCanvas.height = H;
+  sendCanvas.width = W; sendCanvas.height = H;
+
+  // ==== State ====
+  let ws = null;
+  let stream = null;
+  let running = false;
+  let mode = "depth";     // depth | rgb | overlay
+  let lastRecv = performance.now();
+  let lastSend = 0;
+  let sendIntervalMs = 100; // from fpsLimit
+  let jpegQ = 0.70;
+  let overlayAlpha = 0.55;
+  let facingMode = "environment"; // environment | user
+  let rttMs = null;
+
+  // ==== Helpers ====
+  function setWsState(ok, text) {
+    wsDot.classList.remove("good", "bad");
+    wsDot.classList.add(ok ? "good" : "bad");
+    wsState.textContent = text;
+  }
+
+  function setMode(newMode) {
+    mode = newMode;
+    modeLabel.textContent = newMode[0].toUpperCase() + newMode.slice(1);
+    modeInfo.textContent = `mode=${modeLabel.textContent}`;
+    [...modeSeg.querySelectorAll("button")].forEach(b => {
+      b.classList.toggle("active", b.dataset.mode === newMode);
+    });
+  }
+
+  function showErr(msg) {
+    errBox.textContent = msg || "";
+  }
+
+  function nowMs() { return performance.now(); }
+
+  // ==== Camera ====
+  async function startCamera() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+
+    const constraints = {
+      audio: false,
+      video: {
+        facingMode,
+        width: { ideal: W },
+        height: { ideal: H }
+      }
+    };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      await video.play();
+      showErr("");
+    } catch (e) {
+      console.error("getUserMedia error:", e);
+      showErr("Camera error: " + (e && e.name ? e.name : String(e)));
+      throw e;
+    }
+  }
+
+  // ==== WebSocket ====
+  function connectWs() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+    ws = new WebSocket(WS_URL);
+    ws.binaryType = "arraybuffer";
+    setWsState(false, "WS: connecting…");
+
+    ws.onopen = () => {
+      setWsState(true, "WS: connected");
+      // prime loop
+      if (running) requestAnimationFrame(loop);
+    };
+
+    ws.onerror = (e) => {
+      console.log("ws error", e);
+      setWsState(false, "WS: error");
+    };
+
+    ws.onclose = (e) => {
+      console.log("ws closed", e.code, e.reason);
+      setWsState(false, `WS: closed (${e.code})`);
+      // optional auto-reconnect if still running
+      if (running) setTimeout(connectWs, 800);
+    };
+
+    ws.onmessage = (e) => {
+      // receive depth jpeg
+      const blob = new Blob([e.data], { type: "image/jpeg" });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        // Compute FPS from recv intervals
+        const t = nowMs();
+        const fps = 1000 / Math.max(1, (t - lastRecv));
+        lastRecv = t;
+        fpsBadge.textContent = `FPS: ${fps.toFixed(1)}`;
+
+        // RTT estimate (approx): time since last send
+        if (rttMs != null) rttBadge.textContent = `RTT: ${rttMs.toFixed(0)} ms`;
+
+        // Render according to mode
+        if (mode === "depth") {
+          viewCtx.drawImage(img, 0, 0, W, H);
+        } else if (mode === "rgb") {
+          // show rgb from current video frame
+          viewCtx.drawImage(video, 0, 0, W, H);
+        } else {
+          // overlay: rgb + depth
+          viewCtx.globalAlpha = 1.0;
+          viewCtx.drawImage(video, 0, 0, W, H);
+          viewCtx.globalAlpha = overlayAlpha;
+          viewCtx.drawImage(img, 0, 0, W, H);
+          viewCtx.globalAlpha = 1.0;
+        }
+
+        // closed-loop: on next animation frame, send next frame
+        if (running) requestAnimationFrame(loop);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        if (running) requestAnimationFrame(loop);
+      };
+
+      img.src = url;
+    };
+  }
+
+  // ==== Loop ====
+  function sendFrame() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    // Throttle send rate
+    const t = nowMs();
+    if (t - lastSend < sendIntervalMs) return;
+    lastSend = t;
+
+    // draw rgb into send canvas
+    sendCtx.drawImage(video, 0, 0, W, H);
+
+    // encode and send
+    sendCanvas.toBlob(blob => {
+      if (!blob) return;
+      blob.arrayBuffer().then(buf => {
+        // Start RTT timer (approx)
+        rttMs = null;
+        const t0 = nowMs();
+        ws.send(buf);
+        // RTT will be updated on next onmessage as (now - t0)
+        // We store t0 on window to keep simple
+        window.__t0 = t0;
+      });
+    }, "image/jpeg", jpegQ);
+  }
+
+  function loop() {
+    // Update RTT (approx) from last send to now, on each iteration
+    if (window.__t0) rttMs = nowMs() - window.__t0;
+
+    // Send regardless of mode (server always expects rgb)
+    sendFrame();
+  }
+
+  // ==== UI bindings ====
+  modeSeg.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    setMode(btn.dataset.mode);
+  });
+
+  alphaSlider.addEventListener("input", () => {
+    overlayAlpha = parseFloat(alphaSlider.value);
+    alphaVal.textContent = overlayAlpha.toFixed(2);
+  });
+
+  fpsLimit.addEventListener("input", () => {
+    const v = parseInt(fpsLimit.value, 10);
+    fpsLimitVal.textContent = String(v);
+    sendIntervalMs = Math.round(1000 / v);
+  });
+
+  quality.addEventListener("input", () => {
+    jpegQ = parseFloat(quality.value);
+    qVal.textContent = jpegQ.toFixed(2);
+  });
+
+  btnStart.addEventListener("click", async () => {
+    if (running) return;
+    running = true;
+    try {
+      await startCamera();
+      connectWs();
+      requestAnimationFrame(loop);
+    } catch (_) {
+      running = false;
+    }
+  });
+
+  btnStop.addEventListener("click", () => {
+    running = false;
+    fpsBadge.textContent = "FPS: --";
+    rttBadge.textContent = "RTT: -- ms";
+    if (ws) { try { ws.close(); } catch(_) {} }
+    ws = null;
+  });
+
+  btnFlip.addEventListener("click", async () => {
+    facingMode = (facingMode === "environment") ? "user" : "environment";
+    try {
+      await startCamera();
+    } catch (_) {}
+  });
+
+  // Init defaults
+  setMode("depth");
+  alphaVal.textContent = overlayAlpha.toFixed(2);
+  fpsLimitVal.textContent = fpsLimit.value;
+  qVal.textContent = parseFloat(quality.value).toFixed(2);
+  sendIntervalMs = Math.round(1000 / parseInt(fpsLimit.value, 10));
+  setWsState(false, "WS: idle");
+
+  // Auto-start for convenience
+  (async () => {
+    try {
+      running = true;
+      await startCamera();
+      connectWs();
+      requestAnimationFrame(loop);
+    } catch (_) {
+      running = false;
+      setWsState(false, "WS: camera blocked");
+    }
+  })();
+</script>
+</body>
+</html>
